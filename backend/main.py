@@ -16,8 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import database as db
 from database import init_db, get_db, Match, RobotObservation, TeamStats
 from scouter_engine import start_scouting, stop_scouting, get_result_queue, get_active_matches
-from tba_client import get_match, parse_alliance_teams, get_team_info
-from config import SCORING_CATEGORIES
+from tba_client import (
+    get_match, parse_alliance_teams, get_team_info,
+    get_events_for_year, get_event_info, get_event_matches, get_event_webcasts,
+    webcast_to_stream_info, format_match_label,
+)
+from config import SCORING_CATEGORIES, CURRENT_YEAR
 
 logging.basicConfig(
     level=logging.INFO,
@@ -88,7 +92,11 @@ async def _broadcast_loop():
 
 class StartScoutingRequest(BaseModel):
     match_key: str
-    twitch_channel: str
+    # Stream source — provide one of:
+    twitch_channel: Optional[str] = None   # Twitch channel name
+    youtube_id: Optional[str] = None       # YouTube video/live ID
+    stream_url: Optional[str] = None       # Direct HLS/RTMP URL
+    stream_type: str = "twitch"            # "twitch" | "youtube" | "direct"
     event_key: Optional[str] = None
     tba_match_key: Optional[str] = None
     red_alliance: list[int] = []
@@ -104,12 +112,29 @@ class TeamNoteRequest(BaseModel):
 
 @app.post("/api/matches/start")
 async def start_match_scouting(req: StartScoutingRequest, session: AsyncSession = Depends(get_db)):
-    """Start scouting a match from a Twitch stream."""
-    # Auto-fetch alliance info from TBA if a TBA match key is provided
+    """Start scouting a match from a Twitch, YouTube, or direct stream."""
+    # Resolve stream channel/source and type
+    stream_type = req.stream_type or "twitch"
+    if req.youtube_id:
+        channel = req.youtube_id
+        stream_type = "youtube"
+    elif req.stream_url:
+        channel = req.stream_url
+        stream_type = "direct"
+    elif req.twitch_channel:
+        channel = req.twitch_channel.replace("https://www.twitch.tv/", "").replace("@", "").strip()
+        stream_type = "twitch"
+    elif req.use_mock:
+        channel = "mock"
+    else:
+        raise HTTPException(400, "Provide twitch_channel, youtube_id, or stream_url.")
+
+    # Auto-fetch alliance info from TBA if match key given and alliances empty
     red = req.red_alliance
     blue = req.blue_alliance
-    if req.tba_match_key and (not red and not blue):
-        match_data = await get_match(req.tba_match_key)
+    tba_key = req.tba_match_key or req.match_key
+    if tba_key and not (red or blue):
+        match_data = await get_match(tba_key)
         if match_data:
             red, blue = parse_alliance_teams(match_data)
 
@@ -123,7 +148,7 @@ async def start_match_scouting(req: StartScoutingRequest, session: AsyncSession 
     match = Match(
         match_key=req.match_key,
         event_key=req.event_key,
-        twitch_channel=req.twitch_channel,
+        twitch_channel=channel,
         red_alliance=red,
         blue_alliance=blue,
         is_active=True,
@@ -132,12 +157,13 @@ async def start_match_scouting(req: StartScoutingRequest, session: AsyncSession 
     await session.commit()
 
     match_context = {"red_alliance": red, "blue_alliance": blue}
-    await start_scouting(req.match_key, req.twitch_channel, req.use_mock, match_context)
+    await start_scouting(req.match_key, channel, req.use_mock, match_context, stream_type)
 
     return {
         "status": "started",
         "match_key": req.match_key,
-        "channel": req.twitch_channel,
+        "stream_type": stream_type,
+        "channel": channel,
         "red_alliance": red,
         "blue_alliance": blue,
         "use_mock": req.use_mock,
@@ -363,6 +389,112 @@ async def update_team_notes(
     team.notes = body.notes
     await session.commit()
     return {"status": "ok"}
+
+
+# ─── TBA Event / Webcast Endpoints ──────────────────────────────────────────
+
+@app.get("/api/tba/events")
+async def list_tba_events(year: Optional[int] = None):
+    """
+    List FRC events from The Blue Alliance for a given year.
+    Defaults to the current game year. Requires TBA_API_KEY.
+    """
+    from config import TBA_API_KEY
+    if not TBA_API_KEY:
+        raise HTTPException(503, "TBA_API_KEY not configured. Add it to your .env file.")
+    target_year = year or CURRENT_YEAR
+    events = await get_events_for_year(target_year)
+    if events is None:
+        raise HTTPException(502, "Failed to fetch events from TBA.")
+    # Sort by start_date, filtering to events that have webcasts or are regional/district
+    return {
+        "year": target_year,
+        "count": len(events),
+        "events": [
+            {
+                "key": e.get("key"),
+                "name": e.get("name"),
+                "short_name": e.get("short_name"),
+                "event_type_string": e.get("event_type_string"),
+                "city": e.get("city"),
+                "state_prov": e.get("state_prov"),
+                "country": e.get("country"),
+                "start_date": e.get("start_date"),
+                "end_date": e.get("end_date"),
+                "week": e.get("week"),
+                "webcasts": [webcast_to_stream_info(w) for w in e.get("webcasts", [])],
+            }
+            for e in sorted(events, key=lambda e: e.get("start_date") or "")
+        ],
+    }
+
+
+@app.get("/api/tba/events/{event_key}")
+async def get_tba_event(event_key: str):
+    """Get detailed info for a single TBA event including webcasts and streams."""
+    from config import TBA_API_KEY
+    if not TBA_API_KEY:
+        raise HTTPException(503, "TBA_API_KEY not configured.")
+    info = await get_event_info(event_key)
+    if not info:
+        raise HTTPException(404, f"Event '{event_key}' not found on TBA.")
+    webcasts = [webcast_to_stream_info(w) for w in info.get("webcasts", [])]
+    return {
+        "key": info.get("key"),
+        "name": info.get("name"),
+        "short_name": info.get("short_name"),
+        "event_type_string": info.get("event_type_string"),
+        "city": info.get("city"),
+        "state_prov": info.get("state_prov"),
+        "start_date": info.get("start_date"),
+        "end_date": info.get("end_date"),
+        "webcasts": webcasts,
+        "primary_stream": webcasts[0] if webcasts else None,
+    }
+
+
+@app.get("/api/tba/events/{event_key}/matches")
+async def get_tba_event_matches(event_key: str):
+    """
+    Get the match schedule for a TBA event, with alliances pre-populated.
+    Useful for the frontend to build a one-click scouting queue.
+    """
+    from config import TBA_API_KEY
+    if not TBA_API_KEY:
+        raise HTTPException(503, "TBA_API_KEY not configured.")
+    matches = await get_event_matches(event_key)
+    webcasts = await get_event_webcasts(event_key)
+    streams = [webcast_to_stream_info(w) for w in webcasts]
+    primary_stream = streams[0] if streams else None
+
+    return {
+        "event_key": event_key,
+        "primary_stream": primary_stream,
+        "streams": streams,
+        "matches": [
+            {
+                "key": m.get("key"),
+                "label": format_match_label(m),
+                "comp_level": m.get("comp_level"),
+                "set_number": m.get("set_number"),
+                "match_number": m.get("match_number"),
+                "predicted_time": m.get("predicted_time"),
+                "actual_time": m.get("actual_time"),
+                "red_alliance": [
+                    int(k.replace("frc", ""))
+                    for k in m.get("alliances", {}).get("red", {}).get("team_keys", [])
+                ],
+                "blue_alliance": [
+                    int(k.replace("frc", ""))
+                    for k in m.get("alliances", {}).get("blue", {}).get("team_keys", [])
+                ],
+                "winning_alliance": m.get("winning_alliance"),
+                "score_red": m.get("alliances", {}).get("red", {}).get("score"),
+                "score_blue": m.get("alliances", {}).get("blue", {}).get("score"),
+            }
+            for m in matches
+        ],
+    }
 
 
 @app.get("/api/config")

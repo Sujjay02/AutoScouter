@@ -1,8 +1,9 @@
-import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
-import { Activity, BarChart3, Radio, Trophy, Settings } from 'lucide-react'
+import { Routes, Route, NavLink } from 'react-router-dom'
+import { Activity, Radio, Trophy, Globe } from 'lucide-react'
 import Rankings from './pages/Rankings.jsx'
 import Scout from './pages/Scout.jsx'
 import Matches from './pages/Matches.jsx'
+import Events from './pages/Events.jsx'
 import TeamDetail from './pages/TeamDetail.jsx'
 import { LiveFeed } from './components/LiveFeed.jsx'
 import { useWebSocket } from './hooks/useWebSocket.js'
@@ -10,6 +11,7 @@ import { useState } from 'react'
 
 const NAV = [
   { to: '/', icon: Trophy, label: 'Rankings' },
+  { to: '/events', icon: Globe, label: 'TBA Events' },
   { to: '/scout', icon: Radio, label: 'Scout' },
   { to: '/matches', icon: Activity, label: 'Matches' },
 ]
@@ -40,7 +42,7 @@ export default function App() {
             🤖 AutoScouter
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-            FRC Reefscape 2025
+            FRC REBUILT™ 2026
           </div>
         </div>
 
@@ -78,6 +80,7 @@ export default function App() {
       <main style={{ flex: 1, overflow: 'auto', padding: '1.5rem', maxWidth: 'calc(100vw - 220px)' }}>
         <Routes>
           <Route path="/" element={<Rankings />} />
+          <Route path="/events" element={<Events />} />
           <Route path="/scout" element={<Scout />} />
           <Route path="/matches" element={<Matches />} />
           <Route path="/teams/:teamNumber" element={<TeamDetail />} />

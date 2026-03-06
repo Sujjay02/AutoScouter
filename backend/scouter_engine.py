@@ -9,7 +9,7 @@ from sqlalchemy import select, update
 
 from ai_analyzer import analyze_frame, FrameAnalysisResult
 from database import Match, RobotObservation, TeamStats, AsyncSessionLocal
-from stream_capture import StreamCapture, MockStreamCapture
+from stream_capture import create_stream_capture
 from config import FRAME_INTERVAL_SECONDS, MAX_FRAMES_PER_MATCH, SCORING_CATEGORIES
 
 logger = logging.getLogger(__name__)
@@ -146,6 +146,7 @@ async def start_scouting(
     channel: str,
     use_mock: bool = False,
     match_context: dict | None = None,
+    stream_type: str = "twitch",
 ):
     """Start an async scouting task for a match."""
     if match_key in _active_tasks and not _active_tasks[match_key].done():
@@ -153,10 +154,10 @@ async def start_scouting(
         return
 
     task = asyncio.create_task(
-        _scouting_loop(match_key, channel, use_mock, match_context)
+        _scouting_loop(match_key, channel, use_mock, match_context, stream_type)
     )
     _active_tasks[match_key] = task
-    logger.info(f"Started scouting task for {match_key} on channel '{channel}'")
+    logger.info(f"Started scouting task for {match_key} on {stream_type}:'{channel}'")
 
 
 async def stop_scouting(match_key: str):
@@ -185,12 +186,15 @@ async def _scouting_loop(
     channel: str,
     use_mock: bool,
     match_context: dict | None,
+    stream_type: str = "twitch",
 ):
     """Inner loop: capture frames, analyze with AI, persist results."""
-    if use_mock:
-        capture = MockStreamCapture(channel, frame_interval=FRAME_INTERVAL_SECONDS)
-    else:
-        capture = StreamCapture(channel, frame_interval=FRAME_INTERVAL_SECONDS)
+    capture = create_stream_capture(
+        channel,
+        stream_type=stream_type,
+        frame_interval=FRAME_INTERVAL_SECONDS,
+        use_mock=use_mock,
+    )
 
     frame_count = 0
     try:
