@@ -1,12 +1,13 @@
-# 🤖 FRC AutoScouter — FRC 2026
+# 🤖 FRC AutoScouter — REBUILT™ 2026
 
 AI-powered FRC match scouter that analyzes Twitch livestreams in real time using **Claude Vision**, ranking robots across 8 performance categories.
 
 ## Features
 
 - **Live Twitch stream capture** via `streamlink` + OpenCV
-- **Claude Vision AI** analyzes frames every 5 seconds — detects robot numbers, actions, game pieces, climbs, penalties
-- **8 scoring categories**: Auto, Teleop, Coral Handling, Algae Handling, Defense, Endgame, Consistency, Speed
+- **Claude Vision AI** analyzes frames every 5 seconds — detects robot numbers, FUEL scoring, Hub shift state, Tower climbs, Trench usage
+- **Hub Shift awareness** — tracks which alliance's Hub is active each Shift; flags FUEL scored into inactive Hubs (wasted)
+- **8 scoring categories**: Auto, FUEL Scoring, Tower Climb, Collection, Defense, Trench Usage, Consistency, Speed
 - **Weighted overall ranking** across all scouted teams
 - **The Blue Alliance integration** — auto-fills alliance compositions from match keys
 - **Real-time WebSocket dashboard** — live feed panel updates as frames are analyzed
@@ -55,32 +56,39 @@ cp .env.example .env
 ## Usage
 
 1. Open the dashboard → **Scout** tab
-2. Enter your **Match Key** (e.g. `2025casd_qm1`) and **Twitch channel** (e.g. `firstinspires`)
+2. Enter your **Match Key** (e.g. `2026casd_qm1`) and **Twitch channel** (e.g. `firstinspires`)
 3. Optionally enter alliance team numbers or a TBA match key to auto-fill them
 4. Click **Start Scouting** — the AI begins analyzing frames every 5 seconds
 5. Watch the **Live Feed** panel and **Rankings** update in real time
 6. Click any team number to see their full performance profile
 
-## FRC 2026 Game Overview
+## FRC 2026 REBUILT™ Game Overview
 
-- **FUEL**: Bright yellow foam balls (~5.91") scored into the **Hub** for 1 pt each. No holding limit; robots preload up to 8.
-- **Auto (20 sec)**: Score FUEL into Hub. Up to 2 robots per alliance can earn a bonus by completing an **L1 Tower climb** before Auto ends.
-- **Teleop (~2 min 10 sec)**: Driver-controlled FUEL cycles — collect from **Depot** or **Outpost** human player → shoot into **Hub**.
-- **Endgame (final 30 sec)**: Climb the **Tower** (no parking points). Three levels: L1 (lowest rung), L2 (bumpers above rung 1), L3 (highest).
-- **Trench**: Low tunnel (~22") robots can use to bypass the **Bump** for faster cycling.
+| Period | Duration | Notes |
+|---|---|---|
+| Auto | 20 sec | Both Hubs active. FUEL = 1 pt. L1 climb = 5 pts (up to 2 robots). Auto FUEL winner picks Shift order. |
+| Transition | 10 sec | Both Hubs **inactive**. No scoring. |
+| Shift 1 | 25 sec | One alliance Hub active (FUEL = 1 pt); other is inactive (0 pts). |
+| Shift 2 | 25 sec | Opposite alliance Hub active. |
+| Shift 3 | 25 sec | Same as Shift 1. |
+| Shift 4 | 25 sec | Same as Shift 2. |
+| Endgame | 30 sec | Both Hubs active. Tower climbing: L1 = 5 pts, L2 = 15 pts, L3 = 30 pts. |
+
+**No parking points.** Only climb level matters for endgame.
+**Ranking Points:** Energized RP (FUEL threshold) · Traversal RP (collective climb pts)
 
 ## Scouting Categories
 
 | Category | Description | Weight |
 |---|---|---|
 | Auto Period | FUEL scored in Hub + L1 climb bonus during 20-sec auto | 1.5× |
-| FUEL Scoring | Yellow foam balls scored into the Hub during teleop | 1.2× |
-| Tower Climb | Endgame climb level achieved (L1 / L2 / L3) | 1.4× |
-| Collection | Efficiency collecting FUEL from Depot or Outpost | 1.0× |
-| Defense | Defensive plays and opponent disruption | 0.8× |
-| Trench Usage | Using the Trench tunnel to bypass the Bump | 0.7× |
-| Consistency | Reliability and avoiding penalties | 1.0× |
-| Speed & Cycling | FUEL cycle time (Depot → Hub round trip) | 0.9× |
+| FUEL Scoring | Balls into **active** Hub during Shifts/Endgame (1 pt each) | 1.2× |
+| Tower Climb | Endgame climb level: L1 (5 pts) / L2 (15 pts) / L3 (30 pts) | 1.4× |
+| Collection | Efficiency getting FUEL from Depot or Outpost human player | 1.0× |
+| Defense | Disrupting opponents, guarding Hub during opponent Shifts | 0.8× |
+| Trench Usage | Using the ~22" Trench tunnel to bypass the Bump | 0.7× |
+| Consistency | Reliability, hub shift awareness, avoiding penalties | 1.0× |
+| Speed & Cycling | FUEL cycle time: Depot/Outpost → Hub round trip | 0.9× |
 
 ## API Reference
 

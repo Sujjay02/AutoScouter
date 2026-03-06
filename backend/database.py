@@ -51,12 +51,15 @@ class RobotObservation(Base):
 
     # Specific events detected
     fuel_scored = Column(Integer, default=0)
+    fuel_wasted = Column(Integer, default=0)    # scored into inactive Hub (0 pts)
     penalties_incurred = Column(Integer, default=0)
     tower_climb_level = Column(Integer, default=0)  # 0=none, 1=L1, 2=L2, 3=L3
     climb_attempted = Column(Boolean, default=False)
     climb_successful = Column(Boolean, default=False)
     used_trench = Column(Boolean, default=False)
     auto_climb_bonus = Column(Boolean, default=False)
+    hub_active = Column(Boolean, default=False)   # was robot's Hub active this frame?
+    match_shift = Column(String, nullable=True)   # auto|transition|shift1-4|endgame
 
     ai_analysis_text = Column(Text, nullable=True)
     confidence = Column(Float, default=0.5)
@@ -83,6 +86,7 @@ class TeamStats(Base):
     overall_score = Column(Float, default=0)
 
     total_fuel_scored = Column(Integer, default=0)
+    total_fuel_wasted = Column(Integer, default=0)  # into inactive Hub
     total_penalties = Column(Integer, default=0)
     climb_attempts = Column(Integer, default=0)
     climb_successes = Column(Integer, default=0)

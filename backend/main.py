@@ -263,6 +263,7 @@ async def get_rankings(
                 "avg_consistency": round(t.avg_consistency, 1),
                 "avg_speed": round(t.avg_speed, 1),
                 "total_fuel_scored": t.total_fuel_scored,
+                "total_fuel_wasted": t.total_fuel_wasted,
                 "total_penalties": t.total_penalties,
                 "climb_attempts": t.climb_attempts,
                 "climb_successes": t.climb_successes,
@@ -321,6 +322,7 @@ async def get_team(team_number: int, session: AsyncSession = Depends(get_db)):
         },
         "events": {
             "total_fuel_scored": team.total_fuel_scored,
+            "total_fuel_wasted": team.total_fuel_wasted,
             "total_penalties": team.total_penalties,
             "climb_attempts": team.climb_attempts,
             "climb_successes": team.climb_successes,

@@ -55,6 +55,7 @@ async def _upsert_team_stats(session: AsyncSession, team_number: int, obs: Robot
     stats.avg_speed = update_avg(stats.avg_speed, obs.speed * 10)
 
     stats.total_fuel_scored += obs.fuel_scored
+    stats.total_fuel_wasted += obs.fuel_wasted
     stats.total_penalties += obs.penalties_incurred
     if obs.climb_attempted:
         stats.climb_attempts += 1
@@ -100,6 +101,7 @@ async def _save_frame_results(
                 team_number=robot.team_number,
                 frame_number=frame_number,
                 match_phase=result.match_phase,
+                match_shift=result.match_phase,
                 auto_scoring=robot.auto_scoring,
                 fuel_scoring=robot.fuel_scoring,
                 tower_climb=robot.tower_climb,
@@ -109,12 +111,14 @@ async def _save_frame_results(
                 consistency=robot.consistency,
                 speed=robot.speed,
                 fuel_scored=robot.fuel_scored,
+                fuel_wasted=robot.fuel_wasted,
                 penalties_incurred=robot.penalties_incurred,
                 tower_climb_level=robot.tower_climb_level,
                 climb_attempted=robot.climb_attempted,
                 climb_successful=robot.climb_successful,
                 used_trench=robot.used_trench,
                 auto_climb_bonus=robot.auto_climb_bonus,
+                hub_active=robot.hub_active_for_robot,
                 ai_analysis_text=robot.position_description + " | " + ", ".join(robot.actions_observed),
                 confidence=robot.confidence,
             )
@@ -212,6 +216,7 @@ async def _scouting_loop(
                     "match_key": match_key,
                     "frame": frame_num,
                     "phase": result.match_phase,
+                    "active_hub": result.active_hub,
                     "field_observations": result.field_observations,
                     "score_red": result.score_red,
                     "score_blue": result.score_blue,
@@ -221,6 +226,10 @@ async def _scouting_loop(
                             "team_number": r.team_number,
                             "alliance": r.alliance,
                             "actions": r.actions_observed,
+                            "hub_active": r.hub_active_for_robot,
+                            "fuel_scored": r.fuel_scored,
+                            "fuel_wasted": r.fuel_wasted,
+                            "climb_level": r.tower_climb_level,
                             "confidence": r.confidence,
                         }
                         for r in result.robots

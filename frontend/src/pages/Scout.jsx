@@ -91,7 +91,7 @@ export default function Scout() {
               name="match_key"
               value={form.match_key}
               onChange={handleChange}
-              placeholder="e.g. 2025casd_qm1"
+              placeholder="e.g. 2026casd_qm1"
             />
           </div>
           <div>
@@ -127,7 +127,7 @@ export default function Scout() {
               name="tba_match_key"
               value={form.tba_match_key}
               onChange={handleChange}
-              placeholder="e.g. 2025casd_qm1 (auto-fills alliances)"
+              placeholder="e.g. 2026casd_qm1 (auto-fills alliances)"
             />
           </div>
         </div>

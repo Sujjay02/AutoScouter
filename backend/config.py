@@ -68,13 +68,27 @@ DATABASE_URL = "sqlite+aiosqlite:///./autoscouter.db"
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8000"))
 
-# FRC 2026 Game
-CURRENT_GAME = "FRC 2026"
+# FRC 2026 Game: REBUILT™
+CURRENT_GAME = "REBUILT"
 CURRENT_YEAR = 2026
 
-# Tower climb levels and point values
+# Tower climb point values (auto / teleop)
 TOWER_LEVELS = {
-    "L1": {"description": "Robot off ground, touching lowest rung", "points": None},
-    "L2": {"description": "Robot bumpers above first rung", "points": None},
-    "L3": {"description": "Robot bumpers above second rung (highest)", "points": None},
+    "L1": {"description": "Fully supported by Tower; not touching carpet", "auto_pts": 5,  "teleop_pts": 5},
+    "L2": {"description": "Bumpers completely above the Low Rung",          "auto_pts": 0,  "teleop_pts": 15},
+    "L3": {"description": "Bumpers completely above the Mid Rung",          "auto_pts": 0,  "teleop_pts": 30},
+}
+
+# Hub Shift schedule (teleop, excluding endgame)
+# Immediately after Auto: 10-second Transition where both Hubs are inactive.
+# Then four 25-second Shifts alternate which alliance's Hub is active.
+# Endgame (final 30s): both Hubs active simultaneously.
+# The alliance that scores more FUEL in Auto gets to choose their shift order.
+HUB_SHIFTS = {
+    "transition": {"duration_sec": 10,  "active_hub": "none",  "description": "Post-auto transition; both Hubs inactive"},
+    "shift1":     {"duration_sec": 25,  "active_hub": "tbd",   "description": "First scoring shift (alliance chosen by Auto FUEL winner)"},
+    "shift2":     {"duration_sec": 25,  "active_hub": "tbd",   "description": "Second scoring shift (opposing alliance)"},
+    "shift3":     {"duration_sec": 25,  "active_hub": "tbd",   "description": "Third scoring shift"},
+    "shift4":     {"duration_sec": 25,  "active_hub": "tbd",   "description": "Fourth scoring shift"},
+    "endgame":    {"duration_sec": 30,  "active_hub": "both",  "description": "Both Hubs active; Tower climbing begins"},
 }

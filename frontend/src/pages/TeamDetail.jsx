@@ -116,6 +116,11 @@ export default function TeamDetail() {
           <h3 style={{ fontWeight: 700, marginBottom: '0.75rem', fontSize: 14 }}>Event Stats</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Stat label="Total FUEL Scored" value={team.events.total_fuel_scored} />
+            <Stat
+              label="FUEL Wasted (inactive Hub)"
+              value={team.events.total_fuel_wasted}
+              color={team.events.total_fuel_wasted > 5 ? 'var(--red)' : 'var(--text)'}
+            />
             <Stat label="Penalties" value={team.events.total_penalties} color="var(--red)" />
             <Stat
               label="Tower Climbs"
