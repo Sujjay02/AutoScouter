@@ -368,15 +368,23 @@ async def update_team_notes(
 @app.get("/api/config")
 async def get_config():
     """Return scoring category config for the frontend."""
-    return {"categories": SCORING_CATEGORIES, "game": "FRC Reefscape 2025"}
+    from config import CURRENT_GAME, CURRENT_YEAR
+    return {"categories": SCORING_CATEGORIES, "game": f"FRC {CURRENT_YEAR} {CURRENT_GAME}"}
 
 
 @app.get("/api/status")
 async def get_status():
     """Health check and active match status."""
+    from config import AI_PROVIDER, GEMINI_MODEL, CLAUDE_MODEL
+    provider_info = (
+        {"provider": "gemini", "model": GEMINI_MODEL}
+        if AI_PROVIDER == "gemini"
+        else {"provider": "claude", "model": CLAUDE_MODEL}
+    )
     return {
         "status": "running",
         "active_matches": get_active_matches(),
+        **provider_info,
     }
 
 

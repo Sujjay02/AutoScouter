@@ -4,9 +4,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# AI Provider: "claude" or "gemini"
+# Set AI_PROVIDER=gemini in .env to use Google Gemini (free tier available)
+AI_PROVIDER = os.getenv("AI_PROVIDER", "claude").lower()
+
 # Anthropic / Claude
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 CLAUDE_MODEL = "claude-opus-4-6"
+
+# Google Gemini (free tier: 15 RPM, 1500 req/day with gemini-1.5-flash)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
 # The Blue Alliance API
 TBA_API_KEY = os.getenv("TBA_API_KEY", "")

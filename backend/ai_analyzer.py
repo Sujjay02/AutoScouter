@@ -1,15 +1,49 @@
-"""AI-powered FRC match frame analysis using Claude Vision."""
+"""AI-powered FRC match frame analysis — supports Claude and Gemini."""
+import base64
 import json
 import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-import anthropic
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL, SCORING_CATEGORIES, CURRENT_GAME
+from config import (
+    AI_PROVIDER,
+    ANTHROPIC_API_KEY, CLAUDE_MODEL,
+    GEMINI_API_KEY, GEMINI_MODEL,
+)
 
 logger = logging.getLogger(__name__)
 
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+# ── Lazy-initialise whichever client is needed ────────────────────────────────
+
+def _make_claude_client():
+    import anthropic
+    return anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+def _make_gemini_client():
+    import google.generativeai as genai
+    genai.configure(api_key=GEMINI_API_KEY)
+    return genai.GenerativeModel(
+        model_name=GEMINI_MODEL,
+        generation_config={"response_mime_type": "application/json"},
+    )
+
+_claude_client = None
+_gemini_client = None
+
+def _claude():
+    global _claude_client
+    if _claude_client is None:
+        _claude_client = _make_claude_client()
+    return _claude_client
+
+def _gemini():
+    global _gemini_client
+    if _gemini_client is None:
+        _gemini_client = _make_gemini_client()
+    return _gemini_client
+
+
+# ── Prompts (shared between providers) ───────────────────────────────────────
 
 SYSTEM_PROMPT = """You are an expert FRC (FIRST Robotics Competition) match analyst specialized in FRC 2026 REBUILT™.
 
@@ -121,6 +155,8 @@ Phase-specific scoring rules:
 - ENDGAME: score tower_climb (primary), fuel_scoring if Hubs still active, consistency"""
 
 
+# ── Data classes ──────────────────────────────────────────────────────────────
+
 @dataclass
 class RobotAnalysisResult:
     team_number: Optional[int]
@@ -137,9 +173,9 @@ class RobotAnalysisResult:
     consistency: float = 0
     speed: float = 0
     fuel_scored: int = 0
-    fuel_wasted: int = 0         # FUEL into inactive Hub (0 pts — bad strategy)
+    fuel_wasted: int = 0
     penalties_incurred: int = 0
-    tower_climb_level: int = 0   # 0 = none, 1 = L1, 2 = L2, 3 = L3
+    tower_climb_level: int = 0
     climb_attempted: bool = False
     climb_successful: bool = False
     used_trench: bool = False
@@ -150,7 +186,7 @@ class RobotAnalysisResult:
 @dataclass
 class FrameAnalysisResult:
     match_phase: str = "unknown"
-    active_hub: str = "unknown"   # red | blue | both | none | unknown
+    active_hub: str = "unknown"
     robots: list[RobotAnalysisResult] = field(default_factory=list)
     field_observations: str = ""
     score_red: Optional[int] = None
@@ -158,63 +194,92 @@ class FrameAnalysisResult:
     time_remaining: Optional[int] = None
     raw_response: str = ""
     error: Optional[str] = None
+    provider: str = ""
 
+
+# ── Provider implementations ──────────────────────────────────────────────────
+
+def _call_claude(frame_b64: str, prompt: str) -> str:
+    import anthropic
+    message = _claude().messages.create(
+        model=CLAUDE_MODEL,
+        max_tokens=1500,
+        system=SYSTEM_PROMPT,
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": "image/jpeg", "data": frame_b64},
+                },
+                {"type": "text", "text": prompt},
+            ],
+        }],
+    )
+    return message.content[0].text
+
+
+def _call_gemini(frame_b64: str, prompt: str) -> str:
+    import google.generativeai as genai
+    from PIL import Image
+    import io
+
+    img_bytes = base64.b64decode(frame_b64)
+    img = Image.open(io.BytesIO(img_bytes))
+
+    # Gemini takes system + user content in a single turn
+    full_prompt = SYSTEM_PROMPT + "\n\n" + prompt
+    response = _gemini().generate_content([full_prompt, img])
+    return response.text
+
+
+# ── Public interface ──────────────────────────────────────────────────────────
 
 def analyze_frame(frame_b64: str, match_context: dict | None = None) -> FrameAnalysisResult:
-    """
-    Send a frame to Claude for analysis.
-    Returns a FrameAnalysisResult with all detected robot data.
-    """
+    """Analyze a frame using whichever provider is configured (AI_PROVIDER env var)."""
     context_note = ""
     if match_context:
         red = match_context.get("red_alliance", [])
         blue = match_context.get("blue_alliance", [])
         if red or blue:
             context_note = (
-                f"\n\nKnown alliance composition: "
-                f"RED={red}, BLUE={blue}. "
+                f"\n\nKnown alliance composition: RED={red}, BLUE={blue}. "
                 "Use this to help identify partially visible bumper numbers."
             )
 
-    try:
-        message = client.messages.create(
-            model=CLAUDE_MODEL,
-            max_tokens=1500,
-            system=SYSTEM_PROMPT,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/jpeg",
-                                "data": frame_b64,
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": ANALYSIS_PROMPT + context_note,
-                        },
-                    ],
-                }
-            ],
-        )
+    prompt = ANALYSIS_PROMPT + context_note
+    raw = ""
+    provider = AI_PROVIDER
 
-        raw = message.content[0].text
-        data = json.loads(raw)
-        return _parse_analysis_response(data, raw)
+    try:
+        if provider == "gemini":
+            if not GEMINI_API_KEY:
+                return FrameAnalysisResult(error="GEMINI_API_KEY not set in .env", provider=provider)
+            raw = _call_gemini(frame_b64, prompt)
+        else:
+            if not ANTHROPIC_API_KEY:
+                return FrameAnalysisResult(error="ANTHROPIC_API_KEY not set in .env", provider=provider)
+            raw = _call_claude(frame_b64, prompt)
+
+        # Gemini with response_mime_type=application/json may still wrap in markdown
+        clean = raw.strip()
+        if clean.startswith("```"):
+            clean = clean.split("```", 2)[1]
+            if clean.startswith("json"):
+                clean = clean[4:]
+            clean = clean.rsplit("```", 1)[0].strip()
+
+        data = json.loads(clean)
+        result = _parse_analysis_response(data, raw)
+        result.provider = provider
+        return result
 
     except json.JSONDecodeError as e:
-        logger.error(f"JSON parse error in AI response: {e}\nResponse: {raw[:500]}")
-        return FrameAnalysisResult(error=f"JSON parse error: {e}", raw_response=raw[:500])
-    except anthropic.APIError as e:
-        logger.error(f"Anthropic API error: {e}")
-        return FrameAnalysisResult(error=str(e))
+        logger.error(f"JSON parse error ({provider}): {e}\nResponse: {raw[:500]}")
+        return FrameAnalysisResult(error=f"JSON parse error: {e}", raw_response=raw[:500], provider=provider)
     except Exception as e:
-        logger.error(f"Unexpected analysis error: {e}")
-        return FrameAnalysisResult(error=str(e))
+        logger.error(f"Analysis error ({provider}): {e}")
+        return FrameAnalysisResult(error=str(e), provider=provider)
 
 
 def _parse_analysis_response(data: dict, raw: str) -> FrameAnalysisResult:
