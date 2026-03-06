@@ -115,17 +115,24 @@ export default function TeamDetail() {
         <div className="card">
           <h3 style={{ fontWeight: 700, marginBottom: '0.75rem', fontSize: 14 }}>Event Stats</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Stat label="Total Game Pieces" value={team.events.total_game_pieces} />
+            <Stat label="Total FUEL Scored" value={team.events.total_fuel_scored} />
             <Stat label="Penalties" value={team.events.total_penalties} color="var(--red)" />
             <Stat
-              label="Cage Climbs"
+              label="Tower Climbs"
               value={`${team.events.climb_successes} / ${team.events.climb_attempts} attempts`}
+            />
+            <Stat
+              label="Best Climb Level"
+              value={team.events.best_climb_level ? `L${team.events.best_climb_level}` : 'None'}
+              color={team.events.best_climb_level === 3 ? 'var(--green)' : team.events.best_climb_level === 2 ? 'var(--yellow)' : 'var(--text)'}
             />
             <Stat
               label="Climb Success Rate"
               value={`${team.events.climb_success_rate}%`}
               color={team.events.climb_success_rate >= 70 ? 'var(--green)' : 'var(--yellow)'}
             />
+            <Stat label="Auto Climb Bonuses" value={team.events.auto_climb_bonuses} />
+            <Stat label="Trench Passes" value={team.events.trench_uses} />
           </div>
         </div>
       </div>

@@ -46,33 +46,39 @@ async def _upsert_team_stats(session: AsyncSession, team_number: int, obs: Robot
         return round((current * n + new_val) / (n + 1), 3)
 
     stats.avg_auto_scoring = update_avg(stats.avg_auto_scoring, obs.auto_scoring * 10)
-    stats.avg_teleop_scoring = update_avg(stats.avg_teleop_scoring, obs.teleop_scoring * 10)
+    stats.avg_fuel_scoring = update_avg(stats.avg_fuel_scoring, obs.fuel_scoring * 10)
+    stats.avg_tower_climb = update_avg(stats.avg_tower_climb, obs.tower_climb * 10)
+    stats.avg_collection_efficiency = update_avg(stats.avg_collection_efficiency, obs.collection_efficiency * 10)
     stats.avg_defense = update_avg(stats.avg_defense, obs.defense * 10)
-    stats.avg_endgame = update_avg(stats.avg_endgame, obs.endgame * 10)
+    stats.avg_trench_usage = update_avg(stats.avg_trench_usage, obs.trench_usage * 10)
     stats.avg_consistency = update_avg(stats.avg_consistency, obs.consistency * 10)
     stats.avg_speed = update_avg(stats.avg_speed, obs.speed * 10)
-    stats.avg_coral_handling = update_avg(stats.avg_coral_handling, obs.coral_handling * 10)
-    stats.avg_algae_handling = update_avg(stats.avg_algae_handling, obs.algae_handling * 10)
 
-    stats.total_game_pieces += obs.game_pieces_scored
+    stats.total_fuel_scored += obs.fuel_scored
     stats.total_penalties += obs.penalties_incurred
     if obs.climb_attempted:
         stats.climb_attempts += 1
     if obs.climb_successful:
         stats.climb_successes += 1
+    if obs.tower_climb_level > stats.best_climb_level:
+        stats.best_climb_level = obs.tower_climb_level
+    if obs.auto_climb_bonus:
+        stats.auto_climb_bonuses += 1
+    if obs.used_trench:
+        stats.trench_uses += 1
 
     stats.matches_scouted = n + 1
     stats.last_updated = datetime.utcnow()
 
     stats.overall_score = _weighted_overall({
         "avg_auto_scoring": stats.avg_auto_scoring,
-        "avg_teleop_scoring": stats.avg_teleop_scoring,
+        "avg_fuel_scoring": stats.avg_fuel_scoring,
+        "avg_tower_climb": stats.avg_tower_climb,
+        "avg_collection_efficiency": stats.avg_collection_efficiency,
         "avg_defense": stats.avg_defense,
-        "avg_endgame": stats.avg_endgame,
+        "avg_trench_usage": stats.avg_trench_usage,
         "avg_consistency": stats.avg_consistency,
         "avg_speed": stats.avg_speed,
-        "avg_coral_handling": stats.avg_coral_handling,
-        "avg_algae_handling": stats.avg_algae_handling,
     })
 
     await session.commit()
@@ -95,17 +101,20 @@ async def _save_frame_results(
                 frame_number=frame_number,
                 match_phase=result.match_phase,
                 auto_scoring=robot.auto_scoring,
-                teleop_scoring=robot.teleop_scoring,
+                fuel_scoring=robot.fuel_scoring,
+                tower_climb=robot.tower_climb,
+                collection_efficiency=robot.collection_efficiency,
                 defense=robot.defense,
-                endgame=robot.endgame,
+                trench_usage=robot.trench_usage,
                 consistency=robot.consistency,
                 speed=robot.speed,
-                coral_handling=robot.coral_handling,
-                algae_handling=robot.algae_handling,
-                game_pieces_scored=robot.game_pieces_scored,
+                fuel_scored=robot.fuel_scored,
                 penalties_incurred=robot.penalties_incurred,
+                tower_climb_level=robot.tower_climb_level,
                 climb_attempted=robot.climb_attempted,
                 climb_successful=robot.climb_successful,
+                used_trench=robot.used_trench,
+                auto_climb_bonus=robot.auto_climb_bonus,
                 ai_analysis_text=robot.position_description + " | " + ", ".join(robot.actions_observed),
                 confidence=robot.confidence,
             )

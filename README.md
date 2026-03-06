@@ -1,4 +1,4 @@
-# 🤖 FRC AutoScouter — Reefscape 2025
+# 🤖 FRC AutoScouter — FRC 2026
 
 AI-powered FRC match scouter that analyzes Twitch livestreams in real time using **Claude Vision**, ranking robots across 8 performance categories.
 
@@ -61,18 +61,26 @@ cp .env.example .env
 5. Watch the **Live Feed** panel and **Rankings** update in real time
 6. Click any team number to see their full performance profile
 
+## FRC 2026 Game Overview
+
+- **FUEL**: Bright yellow foam balls (~5.91") scored into the **Hub** for 1 pt each. No holding limit; robots preload up to 8.
+- **Auto (20 sec)**: Score FUEL into Hub. Up to 2 robots per alliance can earn a bonus by completing an **L1 Tower climb** before Auto ends.
+- **Teleop (~2 min 10 sec)**: Driver-controlled FUEL cycles — collect from **Depot** or **Outpost** human player → shoot into **Hub**.
+- **Endgame (final 30 sec)**: Climb the **Tower** (no parking points). Three levels: L1 (lowest rung), L2 (bumpers above rung 1), L3 (highest).
+- **Trench**: Low tunnel (~22") robots can use to bypass the **Bump** for faster cycling.
+
 ## Scouting Categories
 
 | Category | Description | Weight |
 |---|---|---|
-| Auto Scoring | Points scored in 15-second autonomous | 1.5× |
-| Teleop Scoring | Game pieces scored during driver control | 1.0× |
-| Coral Handling | Reef coral placement accuracy (L1–L4) | 1.1× |
-| Algae Handling | Algae removal/processor scoring | 0.9× |
+| Auto Period | FUEL scored in Hub + L1 climb bonus during 20-sec auto | 1.5× |
+| FUEL Scoring | Yellow foam balls scored into the Hub during teleop | 1.2× |
+| Tower Climb | Endgame climb level achieved (L1 / L2 / L3) | 1.4× |
+| Collection | Efficiency collecting FUEL from Depot or Outpost | 1.0× |
 | Defense | Defensive plays and opponent disruption | 0.8× |
-| Endgame / Climb | Cage climb attempts and success | 1.2× |
-| Consistency | Reliability, avoiding penalties | 1.0× |
-| Speed & Agility | Cycle time and field traversal | 0.7× |
+| Trench Usage | Using the Trench tunnel to bypass the Bump | 0.7× |
+| Consistency | Reliability and avoiding penalties | 1.0× |
+| Speed & Cycling | FUEL cycle time (Depot → Hub round trip) | 0.9× |
 
 ## API Reference
 

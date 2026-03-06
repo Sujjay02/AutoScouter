@@ -22,42 +22,42 @@ SCORING_CATEGORIES = {
     "auto_scoring": {
         "label": "Auto Period",
         "weight": 1.5,
-        "description": "Points and game pieces scored during autonomous"
+        "description": "FUEL scored in Hub + L1 Tower climb during the 20-second autonomous period"
     },
-    "teleop_scoring": {
-        "label": "Teleop Scoring",
+    "fuel_scoring": {
+        "label": "FUEL Scoring",
+        "weight": 1.2,
+        "description": "Yellow foam balls scored into the Hub during teleop (1 pt each)"
+    },
+    "tower_climb": {
+        "label": "Tower Climb",
+        "weight": 1.4,
+        "description": "Endgame Tower climb level achieved: L1 (lowest), L2 (bumpers above rung 1), L3 (highest)"
+    },
+    "collection_efficiency": {
+        "label": "Collection",
         "weight": 1.0,
-        "description": "Game pieces scored during teleoperated period"
+        "description": "Efficiency collecting FUEL from the Depot or receiving from the Outpost human player"
     },
     "defense": {
         "label": "Defense",
         "weight": 0.8,
-        "description": "Defensive plays and opponent disruption"
+        "description": "Defensive plays, opponent disruption, and field positioning"
     },
-    "endgame": {
-        "label": "Endgame / Climb",
-        "weight": 1.2,
-        "description": "Cage climbs, park points, endgame actions"
+    "trench_usage": {
+        "label": "Trench Usage",
+        "weight": 0.7,
+        "description": "Effective use of the Trench (~22\" tunnel) to bypass the Bump and maintain cycle speed"
     },
     "consistency": {
         "label": "Consistency",
         "weight": 1.0,
-        "description": "Reliability and avoiding penalties"
+        "description": "Reliability across the match, avoiding penalties and robot faults"
     },
     "speed": {
-        "label": "Speed & Agility",
-        "weight": 0.7,
-        "description": "Cycle time and field traversal speed"
-    },
-    "coral_handling": {
-        "label": "Coral Handling",
-        "weight": 1.1,
-        "description": "Reef coral placement accuracy (Reefscape 2025)"
-    },
-    "algae_handling": {
-        "label": "Algae Handling",
+        "label": "Speed & Cycling",
         "weight": 0.9,
-        "description": "Algae removal/processing (Reefscape 2025)"
+        "description": "FUEL cycle time: Depot/Outpost → Hub round-trip speed"
     },
 }
 
@@ -68,6 +68,13 @@ DATABASE_URL = "sqlite+aiosqlite:///./autoscouter.db"
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8000"))
 
-# FRC 2025 Game: Reefscape
-CURRENT_GAME = "Reefscape"
-CURRENT_YEAR = 2025
+# FRC 2026 Game
+CURRENT_GAME = "FRC 2026"
+CURRENT_YEAR = 2026
+
+# Tower climb levels and point values
+TOWER_LEVELS = {
+    "L1": {"description": "Robot off ground, touching lowest rung", "points": None},
+    "L2": {"description": "Robot bumpers above first rung", "points": None},
+    "L3": {"description": "Robot bumpers above second rung (highest)", "points": None},
+}

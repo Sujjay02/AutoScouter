@@ -41,19 +41,22 @@ class RobotObservation(Base):
 
     # Raw scores from AI analysis (0-10 scale per observation)
     auto_scoring = Column(Float, default=0)
-    teleop_scoring = Column(Float, default=0)
+    fuel_scoring = Column(Float, default=0)
+    tower_climb = Column(Float, default=0)
+    collection_efficiency = Column(Float, default=0)
     defense = Column(Float, default=0)
-    endgame = Column(Float, default=0)
+    trench_usage = Column(Float, default=0)
     consistency = Column(Float, default=0)
     speed = Column(Float, default=0)
-    coral_handling = Column(Float, default=0)
-    algae_handling = Column(Float, default=0)
 
     # Specific events detected
-    game_pieces_scored = Column(Integer, default=0)
+    fuel_scored = Column(Integer, default=0)
     penalties_incurred = Column(Integer, default=0)
+    tower_climb_level = Column(Integer, default=0)  # 0=none, 1=L1, 2=L2, 3=L3
     climb_attempted = Column(Boolean, default=False)
     climb_successful = Column(Boolean, default=False)
+    used_trench = Column(Boolean, default=False)
+    auto_climb_bonus = Column(Boolean, default=False)
 
     ai_analysis_text = Column(Text, nullable=True)
     confidence = Column(Float, default=0.5)
@@ -70,19 +73,22 @@ class TeamStats(Base):
 
     # Averaged scores (0-100 scale)
     avg_auto_scoring = Column(Float, default=0)
-    avg_teleop_scoring = Column(Float, default=0)
+    avg_fuel_scoring = Column(Float, default=0)
+    avg_tower_climb = Column(Float, default=0)
+    avg_collection_efficiency = Column(Float, default=0)
     avg_defense = Column(Float, default=0)
-    avg_endgame = Column(Float, default=0)
+    avg_trench_usage = Column(Float, default=0)
     avg_consistency = Column(Float, default=0)
     avg_speed = Column(Float, default=0)
-    avg_coral_handling = Column(Float, default=0)
-    avg_algae_handling = Column(Float, default=0)
     overall_score = Column(Float, default=0)
 
-    total_game_pieces = Column(Integer, default=0)
+    total_fuel_scored = Column(Integer, default=0)
     total_penalties = Column(Integer, default=0)
     climb_attempts = Column(Integer, default=0)
     climb_successes = Column(Integer, default=0)
+    best_climb_level = Column(Integer, default=0)   # highest L1/L2/L3 achieved
+    auto_climb_bonuses = Column(Integer, default=0)
+    trench_uses = Column(Integer, default=0)
 
     last_updated = Column(DateTime, default=datetime.utcnow)
     notes = Column(Text, nullable=True)

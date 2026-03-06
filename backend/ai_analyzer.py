@@ -11,21 +11,42 @@ logger = logging.getLogger(__name__)
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-SYSTEM_PROMPT = f"""You are an expert FRC (FIRST Robotics Competition) match analyst specialized in the {CURRENT_GAME} game (2025).
+SYSTEM_PROMPT = """You are an expert FRC (FIRST Robotics Competition) match analyst specialized in the FRC 2026 game.
 
-In Reefscape 2025:
-- CORAL pieces are placed on the REEF structure at L1/L2/L3/L4 levels
-- ALGAE pieces float on the reef and can be removed to the processor or barge
-- AUTO period: 15 seconds, robots act autonomously
-- TELEOP period: 2 min 15 sec, drivers control robots
-- ENDGAME: final 30 seconds, robots can CAGE CLIMB on chains (Level 1, 2, or 3) or PARK
-- Red alliance is on the left side, blue alliance on the right (from audience perspective)
-- Robot team numbers appear on bumpers (4-digit numbers)
+FRC 2026 Game Rules:
+FIELD ZONES:
+- Red Alliance Zone and Blue Alliance Zone (each side of the field)
+- Neutral Zone (center)
+- Hub: Central goal structure where FUEL is scored (both Hubs active in Auto)
+- Tower: Climbing structure in each Alliance Zone (3 rungs)
+- Outpost: Human player station on alliance wall — feeds FUEL to robots
+- Depot: Corner holding area with starting FUEL
+- Trench: Low-clearance tunnel (~22" tall) robots can use to bypass the Bump
+- Bump: Raised barrier robots must traverse if not using the Trench
+
+GAME PIECE — FUEL:
+- Bright yellow spherical foam balls (~5.91" diameter, ~0.47 lbs)
+- Robots preload up to 8 FUEL; no in-match holding limit
+- Scored by shooting/placing into the Hub = 1 point each
+- Human players at the Outpost can also throw FUEL into the Hub
+
+MATCH PERIODS:
+- AUTO (20 seconds): Robots act autonomously. Score FUEL into Hub. Up to 2 robots per alliance
+  can earn bonus points by completing an L1 Tower climb before Auto ends.
+- TELEOP (~2 min 10 sec): Driver-controlled FUEL scoring into Hub.
+- ENDGAME (final 30 seconds): Tower climbing. NO parking points — only climb levels score.
+  * L1: Robot off ground, touching the lowest rung
+  * L2: Robot bumpers above the first rung
+  * L3: Robot bumpers above the second rung (highest reward)
+
+ROBOT IDENTIFICATION:
+- Team numbers (4 digits) appear on colored bumpers (red or blue)
+- Red alliance bumpers are red; blue alliance bumpers are blue
 
 Your job is to analyze match footage frames and extract structured scouting data.
 Be precise, conservative in your estimates, and flag low-confidence observations."""
 
-ANALYSIS_PROMPT = """Analyze this FRC Reefscape match frame and return a JSON object with the following structure.
+ANALYSIS_PROMPT = """Analyze this FRC 2026 match frame and return a JSON object with the following structure.
 
 If you can identify robot team numbers from bumpers, include them. Robots may be partially obscured.
 
@@ -36,44 +57,50 @@ Return ONLY valid JSON (no markdown, no explanation), structured exactly as:
     {
       "team_number": <integer or null if unreadable>,
       "alliance": "red|blue|unknown",
-      "position_description": "<brief description>",
+      "position_description": "<where on field: Hub area, Depot, Trench, Neutral Zone, Tower, etc.>",
       "actions_observed": ["<action1>", "<action2>"],
       "scores": {
         "auto_scoring": <0-10>,
-        "teleop_scoring": <0-10>,
+        "fuel_scoring": <0-10>,
+        "tower_climb": <0-10>,
+        "collection_efficiency": <0-10>,
         "defense": <0-10>,
-        "endgame": <0-10>,
+        "trench_usage": <0-10>,
         "consistency": <0-10>,
-        "speed": <0-10>,
-        "coral_handling": <0-10>,
-        "algae_handling": <0-10>
+        "speed": <0-10>
       },
       "events": {
-        "game_pieces_scored": <integer>,
+        "fuel_scored": <integer, FUEL balls observed going into Hub>,
         "penalties_incurred": <integer>,
+        "tower_climb_level": <0, 1, 2, or 3 — 0 if no climb attempted>,
         "climb_attempted": <boolean>,
-        "climb_successful": <boolean>
+        "climb_successful": <boolean>,
+        "used_trench": <boolean>,
+        "auto_climb_bonus": <boolean — L1 climb completed before Auto ends>
       },
       "confidence": <0.0-1.0>
     }
   ],
-  "field_observations": "<brief overall description of what's happening in the frame>",
+  "field_observations": "<brief overall description: phase, key actions, field positioning>",
   "score_display": {
-    "red": <integer or null>,
+    "red": <integer or null — read from on-screen scoreboard if visible>,
     "blue": <integer or null>
   },
-  "time_remaining": <integer seconds or null>
+  "time_remaining": <integer seconds or null — read from timer if visible>
 }
 
-Score guidelines (0-10):
-- 0: Not observed / not applicable
+Score guidelines (0-10 per category):
+- 0: Not observed / not applicable in this phase
 - 1-3: Poor / minimal contribution
 - 4-6: Average contribution
-- 7-9: Good contribution
-- 10: Exceptional
+- 7-9: Strong contribution
+- 10: Exceptional / best-in-class
 
-Only score categories relevant to the current match_phase.
-Set auto_scoring=0 if not in auto phase, etc."""
+Phase-specific scoring:
+- AUTO phase: score auto_scoring and collection_efficiency; set fuel_scoring=0, tower_climb=0 unless endgame
+- TELEOP phase: score fuel_scoring, collection_efficiency, defense, trench_usage, speed; auto_scoring=0
+- ENDGAME phase: score tower_climb primarily; note the climb level (L1/L2/L3) in events
+- Always score consistency across all phases"""
 
 
 @dataclass
@@ -83,17 +110,20 @@ class RobotAnalysisResult:
     position_description: str
     actions_observed: list[str]
     auto_scoring: float = 0
-    teleop_scoring: float = 0
+    fuel_scoring: float = 0
+    tower_climb: float = 0
+    collection_efficiency: float = 0
     defense: float = 0
-    endgame: float = 0
+    trench_usage: float = 0
     consistency: float = 0
     speed: float = 0
-    coral_handling: float = 0
-    algae_handling: float = 0
-    game_pieces_scored: int = 0
+    fuel_scored: int = 0
     penalties_incurred: int = 0
+    tower_climb_level: int = 0   # 0 = none, 1 = L1, 2 = L2, 3 = L3
     climb_attempted: bool = False
     climb_successful: bool = False
+    used_trench: bool = False
+    auto_climb_bonus: bool = False
     confidence: float = 0.5
 
 
@@ -177,17 +207,20 @@ def _parse_analysis_response(data: dict, raw: str) -> FrameAnalysisResult:
             position_description=r.get("position_description", ""),
             actions_observed=r.get("actions_observed", []),
             auto_scoring=float(scores.get("auto_scoring", 0)),
-            teleop_scoring=float(scores.get("teleop_scoring", 0)),
+            fuel_scoring=float(scores.get("fuel_scoring", 0)),
+            tower_climb=float(scores.get("tower_climb", 0)),
+            collection_efficiency=float(scores.get("collection_efficiency", 0)),
             defense=float(scores.get("defense", 0)),
-            endgame=float(scores.get("endgame", 0)),
+            trench_usage=float(scores.get("trench_usage", 0)),
             consistency=float(scores.get("consistency", 0)),
             speed=float(scores.get("speed", 0)),
-            coral_handling=float(scores.get("coral_handling", 0)),
-            algae_handling=float(scores.get("algae_handling", 0)),
-            game_pieces_scored=int(events.get("game_pieces_scored", 0)),
+            fuel_scored=int(events.get("fuel_scored", 0)),
             penalties_incurred=int(events.get("penalties_incurred", 0)),
+            tower_climb_level=int(events.get("tower_climb_level", 0)),
             climb_attempted=bool(events.get("climb_attempted", False)),
             climb_successful=bool(events.get("climb_successful", False)),
+            used_trench=bool(events.get("used_trench", False)),
+            auto_climb_bonus=bool(events.get("auto_climb_bonus", False)),
             confidence=float(r.get("confidence", 0.5)),
         ))
 

@@ -6,11 +6,11 @@ import { CategoryScore } from '../components/ScoreBar.jsx'
 const CATEGORIES = [
   { key: 'overall_score', label: 'Overall' },
   { key: 'auto_scoring', label: 'Auto' },
-  { key: 'teleop_scoring', label: 'Teleop' },
-  { key: 'coral_handling', label: 'Coral' },
-  { key: 'algae_handling', label: 'Algae' },
+  { key: 'fuel_scoring', label: 'FUEL' },
+  { key: 'tower_climb', label: 'Tower Climb' },
+  { key: 'collection_efficiency', label: 'Collection' },
   { key: 'defense', label: 'Defense' },
-  { key: 'endgame', label: 'Endgame' },
+  { key: 'trench_usage', label: 'Trench' },
   { key: 'consistency', label: 'Consistency' },
   { key: 'speed', label: 'Speed' },
 ]
@@ -172,19 +172,20 @@ function RankingRow({ team, sortBy }) {
       {expanded && (
         <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' }}>
-            <CategoryScore label="Auto Scoring" value={team.avg_auto_scoring} />
-            <CategoryScore label="Teleop Scoring" value={team.avg_teleop_scoring} />
-            <CategoryScore label="Coral Handling" value={team.avg_coral_handling} />
-            <CategoryScore label="Algae Handling" value={team.avg_algae_handling} />
+            <CategoryScore label="Auto Period" value={team.avg_auto_scoring} />
+            <CategoryScore label="FUEL Scoring" value={team.avg_fuel_scoring} />
+            <CategoryScore label="Tower Climb" value={team.avg_tower_climb} />
+            <CategoryScore label="Collection" value={team.avg_collection_efficiency} />
             <CategoryScore label="Defense" value={team.avg_defense} />
-            <CategoryScore label="Endgame" value={team.avg_endgame} />
+            <CategoryScore label="Trench Usage" value={team.avg_trench_usage} />
             <CategoryScore label="Consistency" value={team.avg_consistency} />
-            <CategoryScore label="Speed" value={team.avg_speed} />
+            <CategoryScore label="Speed & Cycling" value={team.avg_speed} />
           </div>
           <div style={{ marginTop: '0.75rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <StatPill label="Game Pieces" value={team.total_game_pieces} />
+            <StatPill label="FUEL Scored" value={team.total_fuel_scored} />
             <StatPill label="Penalties" value={team.total_penalties} color="var(--red)" />
             <StatPill label="Climbs" value={`${team.climb_successes}/${team.climb_attempts}`} />
+            <StatPill label="Best Level" value={`L${team.best_climb_level || 0}`} />
             <StatPill label="Climb Rate" value={`${team.climb_rate}%`} />
           </div>
           <div style={{ marginTop: '0.75rem' }}>
